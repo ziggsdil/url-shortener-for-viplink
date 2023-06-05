@@ -16,7 +16,7 @@ func (s *TestSuite) TestInfoNotFound() {
 
 func (s *TestSuite) TestInfoOk() {
 	// create short url
-	code, rawBody := s.doRequest(s.shortRequest("http://ya.ru"))
+	code, rawBody := s.doRequest(s.shortRequest(newSimpleShortRequest("http://ya.ru")))
 	s.Require().Equal(http.StatusOK, code)
 
 	shortResponse, err := s.shortResponseFromBody(rawBody)
@@ -34,7 +34,7 @@ func (s *TestSuite) TestInfoOk() {
 
 func (s *TestSuite) TestInfoOkWithRedirects() {
 	// create short url
-	code, rawBody := s.doRequest(s.shortRequest("http://ya.ru"))
+	code, rawBody := s.doRequest(s.shortRequest(newSimpleShortRequest("http://ya.ru")))
 	s.Require().Equal(http.StatusOK, code)
 
 	shortResponse, err := s.shortResponseFromBody(rawBody)

@@ -12,7 +12,7 @@ func (s *TestSuite) TestRedirectNotFound() {
 
 func (s *TestSuite) TestRedirectOk() {
 	// create short url
-	code, rawBody := s.doRequest(s.shortRequest("http://ya.ru"))
+	code, rawBody := s.doRequest(s.shortRequest(newSimpleShortRequest("http://ya.ru")))
 	s.Require().Equal(http.StatusOK, code)
 
 	shortResponse, err := s.shortResponseFromBody(rawBody)
