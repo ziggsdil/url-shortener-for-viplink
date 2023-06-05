@@ -57,7 +57,7 @@ func main() {
 
 	go func() {
 		fmt.Println("server started")
-		srv.ListenAndServe()
+		_ = srv.ListenAndServe()
 	}()
 
 	// wait for interrupt
@@ -68,5 +68,5 @@ func main() {
 	// attempt a graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	srv.Shutdown(ctx)
+	_ = srv.Shutdown(ctx)
 }

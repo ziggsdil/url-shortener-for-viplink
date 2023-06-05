@@ -23,7 +23,7 @@ func (s *TestSuite) TestDeleteOk() {
 	s.Require().Equal(http.StatusOK, code)
 
 	// check info
-	code, rawBody = s.doRequest(s.infoRequest(shortResponse.SecretKey))
+	code, _ = s.doRequest(s.infoRequest(shortResponse.SecretKey))
 	s.Require().Equal(http.StatusNotFound, code)
 }
 

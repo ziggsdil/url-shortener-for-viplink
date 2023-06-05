@@ -13,7 +13,7 @@ type Renderer struct{}
 func (r Renderer) RenderJSON(w http.ResponseWriter, response interface{}) {
 	w.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(w)
-	encoder.Encode(response)
+	_ = encoder.Encode(response)
 }
 
 func (r Renderer) RenderOK(w http.ResponseWriter) {
@@ -31,7 +31,7 @@ func (r Renderer) RenderError(w http.ResponseWriter, err error) {
 	w.WriteHeader(status)
 
 	encoder := json.NewEncoder(w)
-	encoder.Encode(ErrorResponse{
+	_ = encoder.Encode(ErrorResponse{
 		Error: err.Error(),
 	})
 }

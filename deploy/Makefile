@@ -48,11 +48,17 @@ run:  ##@Application Run application server
 open_db:  ##@Database Open database console inside docker-image
 	docker exec -it shortener_postgres psql -d $(POSTGRES_DB) -U $(POSTGRES_USER)
 
-clean_db: ##@Database Clean database data
+clean_db: ##@Database Stop database and clean its data
 	docker stop shortener_postgres && docker rm shortener_postgres
 
-test:  ##@Testing Test application with gotest (be careful: tests drops all data in database)
+test:  ##@Testing Test application with gotest (be careful: tests drops all data in database from env)
 	make db && go test $(ROOT_FOLDER)/pkg/handler
+
+lint:
+	golangci-lint run --issues-exit-code 0 --print-issued-lines=false --out-format code-climate:gl-code-quality-report.json,line-number $(ROOT_FOLDER)/pkg/*
+
+format:
+	go fmt $(ROOT_FOLDER)/pkg/*
 
 %::
 	echo $(MESSAGE)
