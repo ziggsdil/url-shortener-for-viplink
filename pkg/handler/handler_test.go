@@ -35,16 +35,10 @@ func (s *TestSuite) SetupSuite() {
 	err := confita.NewLoader(
 		env.NewBackend(),
 	).Load(s.ctx, &cfg)
-	if err != nil {
-		fmt.Printf("failed to parse config: %s\n", err.Error())
-		return
-	}
+	s.Require().NoError(err, "failed to parse config")
 
 	postgres, err := db.NewDatabase(cfg.Postgres)
-	if err != nil {
-		fmt.Printf("failed to connect postgresql: %s\n", err.Error())
-		return
-	}
+	s.Require().NoError(err, "failed to connect postgresql")
 	s.db = postgres
 	s.TearDownSuite()
 
@@ -59,6 +53,10 @@ func (s *TestSuite) SetupSuite() {
 }
 
 func (s *TestSuite) TearDownSuite() {
+	if s.db == nil {
+		return
+	}
+
 	err := s.db.Drop(s.ctx)
 	if err != nil {
 		fmt.Printf("failed to drop database: %s\n", err.Error())
@@ -66,6 +64,10 @@ func (s *TestSuite) TearDownSuite() {
 }
 
 func (s *TestSuite) TearDownTest() {
+	if s.db == nil {
+		return
+	}
+
 	err := s.db.Clean(s.ctx)
 	if err != nil {
 		fmt.Printf("failed to clean database: %s\n", err.Error())
