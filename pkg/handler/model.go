@@ -36,6 +36,7 @@ type ShortLinkResponse struct {
 type InfoResponse struct {
 	LongUrl  string `json:"long_url"`
 	ShortUrl string `json:"short_url"`
+	Clicks   int    `json:"clicks"`
 }
 
 func (r *InfoResponse) FromLink(link *db.Link, baseUrl string) {
@@ -45,4 +46,5 @@ func (r *InfoResponse) FromLink(link *db.Link, baseUrl string) {
 
 	r.ShortUrl = shortLinkFunc(baseUrl, link.ShortSuffix)
 	r.LongUrl = link.Link
+	r.Clicks = link.Clicks
 }

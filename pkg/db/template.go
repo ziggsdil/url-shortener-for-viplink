@@ -10,6 +10,14 @@ const (
 		);
 	`
 
+	dropRequest = `
+		DROP TABLE IF EXISTS links;
+	`
+
+	cleanRequest = `
+		DELETE FROM links;
+	`
+
 	saveRequest = `
 		INSERT INTO links(short_suffix, link, secret_key) 
 			VALUES ($1, $2, $3);

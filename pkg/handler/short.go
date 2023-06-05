@@ -14,7 +14,7 @@ import (
 
 const (
 	shortLinkLen = 5
-	secretKeyLen = 16
+	secretKeyLen = 8
 )
 
 var shortLinkFunc = func(baseUrl, suffix string) string { return fmt.Sprintf("http://%s/%s", baseUrl, suffix) }

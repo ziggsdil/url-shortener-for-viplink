@@ -30,6 +30,18 @@ func (db *Database) Init(ctx context.Context) error {
 	return err
 }
 
+// Drop drops all tables in database. USE ONLY FOR TESTS!
+func (db *Database) Drop(ctx context.Context) error {
+	_, err := db.client.ExecContext(ctx, dropRequest)
+	return err
+}
+
+// Clean cleans all tables in database. USE ONLY FOR TESTS!
+func (db *Database) Clean(ctx context.Context) error {
+	_, err := db.client.ExecContext(ctx, cleanRequest)
+	return err
+}
+
 func (db *Database) Save(ctx context.Context, shortSuffix, longLink, secretKey string) error {
 	_, err := db.client.ExecContext(ctx, saveRequest, shortSuffix, longLink, secretKey)
 	return err

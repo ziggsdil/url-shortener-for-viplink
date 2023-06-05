@@ -16,16 +16,14 @@ endif
 
 args := $(wordlist 2, 100, $(MAKECMDGOALS))
 ifndef args
-MESSAGE = "No such command (or you pass two or many targets to ). List of possible commands: make help"
+MESSAGE = "No such command (or you pass two or many targets to). List of possible commands: make help"
 else
 MESSAGE = "Done"
 endif
 
 ROOT_FOLDER = ..
-TEST = poetry run python -m pytest --verbosity=2 --showlocals --log-level=DEBUG
-CODE = $(ROOT_FOLDER) tests
 
-HELP_FUN = \
+HELP_FUNC = \
 	%help; while(<>){push@{$$help{$$2//'options'}},[$$1,$$3] \
 	if/^([\w-_]+)\s*:.*\#\#(?:@(\w+))?\s(.*)$$/}; \
     print"$$_:\n", map"  $$_->[0]".(" "x(20-length($$_->[0])))."$$_->[1]\n",\
@@ -39,31 +37,22 @@ env:  ##@Environment Create .env file with variables
 
 help: ##@Help Show this help
 	@echo -e "Usage: make [target] ...\n"
-	@perl -e '$(HELP_FUN)' $(MAKEFILE_LIST)
+	@perl -e '$(HELP_FUNC)' $(MAKEFILE_LIST)
 
 db:  ##@Database Create database with docker-compose
 	docker-compose -f docker-compose.yml up -d --remove-orphans
 
-migrate:  ##@Database Do all migrations in database
-	cd $(ROOT_FOLDER)/db && alembic upgrade $(args)
-
 run:  ##@Application Run application server
 	go run $(ROOT_FOLDER)/cmd --config $(ROOT_FOLDER)/deploy
 
-revision:  ##@Database Create new revision file automatically with prefix (ex. 2022_01_01_14cs34f_message.py)
-	cd $(ROOT_FOLDER)/db && alembic revision --autogenerate
+open_db:  ##@Database Open database console inside docker-image
+	docker exec -it shortener_postgres psql -d $(POSTGRES_DB) -U $(POSTGRES_USER)
 
-open_db:  ##@Database Open database inside docker-image
-	docker exec -it bookmark_postgres psql -d $(POSTGRES_DB) -U $(POSTGRES_USER)
+clean_db: ##@Database Clean database data
+	docker stop shortener_postgres && docker rm shortener_postgres
 
-test:  ##@Testing Test application with pytest
-	make db && $(TEST)
-
-test-cov:  ##@Testing Test application with pytest and create coverage report
-	make db && $(TEST) --cov=$(ROOT_FOLDER) --cov-report html --cov-fail-under=70
-
-clean:  ##@Code Clean directory from garbage files
-	rm -fr *.egg-info dist
+test:  ##@Testing Test application with gotest (be careful: tests drops all data in database)
+	make db && go test $(ROOT_FOLDER)/pkg/handler
 
 %::
 	echo $(MESSAGE)
