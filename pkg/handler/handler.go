@@ -33,7 +33,8 @@ func (h *Handler) Router() chi.Router {
 			r.Get("/{secretKey}", h.Info)
 		})
 
-		r.Post("/make_shorter", h.Short)
+		//r.Post("/make_shorter", h.Short)
+		r.Post("/make_shorter", h.ShortVIP)
 		r.Get("/{shortSuffix}", h.Redirect)
 
 		r.Get("/healthcheck/ping", h.HealthCheck)

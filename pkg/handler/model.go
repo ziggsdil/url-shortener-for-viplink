@@ -11,6 +11,63 @@ type ShortLinkRequest struct {
 	LongUrl string `json:"long_url"`
 }
 
+// my
+type ShortVipLinkRequest struct {
+	LongUrl        string `json:"long_url"`
+	VipKey         string `json:"vip_key"`
+	TimeToLive     int    `json:"ttl"`
+	TimeToLiveUnit string `json:"ttl_unit"`
+}
+
+const (
+	maxDays    = 2
+	maxHours   = 48
+	maxMinutes = 48 * 60
+	maxSeconds = 48 * 60 * 60
+)
+
+// my
+func (r ShortVipLinkRequest) Validate() error {
+	if r.LongUrl == "" {
+		return fmt.Errorf("invalid long url")
+	}
+
+	// TODO: написать проверку на существует ли уже такая vip ссылка
+	if r.VipKey == "" {
+		return fmt.Errorf("vip key is empty")
+	}
+
+	maxValues := map[string]int{
+		"DAYS":    maxDays,
+		"HOURS":   maxHours,
+		"MINUTES": maxMinutes,
+		"SECONDS": maxSeconds,
+	}
+
+	if r.TimeToLive > maxValues[r.TimeToLiveUnit] {
+		return fmt.Errorf("date should be less than 2 days")
+	}
+
+	parsedUrl, err := url.Parse(r.LongUrl)
+	if err != nil {
+		return err
+	}
+
+	// можно еще проверить на http или https
+	if parsedUrl.Scheme == "" {
+		return fmt.Errorf("schema should be provided in long url")
+	}
+
+	/*	if (r.TimeToLiveUnit == "HOURS" && r.TimeToLive > 48) ||
+		(r.TimeToLiveUnit == "DAYS" && r.TimeToLive > 2) ||
+		(r.TimeToLiveUnit == "MINUTES" && r.TimeToLive > (48*60)) ||
+		(r.TimeToLiveUnit == "SECONDS" && r.TimeToLive > (48*60*60)) {
+		return fmt.Errorf("date should be less 2 days")
+	}*/
+
+	return nil
+}
+
 func (r ShortLinkRequest) Validate() error {
 	if r.LongUrl == "" {
 		return fmt.Errorf("invalid long url")

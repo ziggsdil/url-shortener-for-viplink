@@ -14,7 +14,7 @@ type Error interface {
 type NotFoundError struct{}
 
 func (e NotFoundError) Error() string {
-	return "NOT_FOUND"
+	return "NOT_FOUNDqwe"
 }
 
 func (e NotFoundError) Code() int {

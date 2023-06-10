@@ -1,6 +1,8 @@
-ifeq ($(shell test -e '.env' && echo -n yes),yes)
-	include .env
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
 endif
+
 
 # Manually define main variables
 

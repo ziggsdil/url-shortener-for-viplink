@@ -19,6 +19,78 @@ const (
 
 var shortLinkFunc = func(baseUrl, suffix string) string { return fmt.Sprintf("http://%s/%s", baseUrl, suffix) }
 
+// my
+func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var request ShortVipLinkRequest
+	err := h.parseBody(r.Body, &request)
+	if err != nil {
+		fmt.Printf("error when parse body: %v\n", err)
+		h.renderer.RenderError(w, apierrors.BadRequest{})
+		return
+	}
+
+	if err := request.Validate(); err != nil {
+		fmt.Printf("error when validate request: %v\n", err)
+		h.renderer.RenderError(w, apierrors.BadRequest{})
+		return
+	}
+
+	// проверка существует ли уже короткая ссылка на длинный url
+	link, err := h.db.SelectByLink(ctx, request.LongUrl)
+	switch {
+	case err == nil:
+		fmt.Printf("long url \"%s\" has been already shorten with suffix %s\n", link.Link, link.ShortSuffix)
+		h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, link.ShortSuffix)})
+		return
+	case errors.Is(err, database.LinkNotFoundError):
+	default:
+		fmt.Printf("error when select long url: %v\n", err)
+		h.renderer.RenderError(w, apierrors.InternalError{})
+		return
+	}
+
+	// проверка не занята ли уже короткая ссылка
+	shortLink, err := h.db.SelectBySuffix(ctx, request.VipKey)
+	switch {
+	case err == nil:
+		fmt.Printf("vip url \"%s\" already exist", shortLink.ShortSuffix)
+		//h.renderer.RenderJSON(w, )
+		return
+	case errors.Is(err, database.SuffixNotFoundError):
+	default:
+		fmt.Printf("error when select vip url: %v\n", err)
+		h.renderer.RenderError(w, apierrors.InternalError{})
+		return
+	}
+
+	var secretKey string
+	for {
+		secretKey, err = h.generateSecretKey(ctx)
+		if err == nil {
+			break
+		}
+
+		if !errors.Is(err, apierrors.SecretKeyAlreadyExistsError{}) {
+			fmt.Printf("error when generate secret key: %v\n", err)
+			h.renderer.RenderError(w, apierrors.InternalError{})
+			return
+		}
+	}
+
+	err = h.db.Save(ctx, request.VipKey, request.LongUrl, secretKey)
+	if err != nil {
+		fmt.Printf("error when saving short link: %v\n", err)
+		h.renderer.RenderError(w, apierrors.InternalError{})
+		return
+	}
+
+	fmt.Printf("short link \"%s\" with suffix \"%s\" has been successfully saved\n", request.LongUrl, request.VipKey)
+	h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, request.VipKey), SecretKey: secretKey})
+
+}
+
 func (h *Handler) Short(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
