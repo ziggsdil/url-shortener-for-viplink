@@ -2,17 +2,13 @@ package handler
 
 import (
 	"fmt"
+	apierrors "git.yandex-academy.ru/school/2023-06/backend/go/homeworks/intro_lecture/ya-url-shortener-for-viplink/pkg/errors"
 	"net/url"
 
 	"git.yandex-academy.ru/school/2023-06/backend/go/homeworks/intro_lecture/ya-url-shortener-for-viplink/pkg/db"
 )
 
 type ShortLinkRequest struct {
-	LongUrl string `json:"long_url"`
-}
-
-// my
-type ShortVipLinkRequest struct {
 	LongUrl        string `json:"long_url"`
 	VipKey         string `json:"vip_key"`
 	TimeToLive     int    `json:"ttl"`
@@ -26,24 +22,45 @@ const (
 	maxSeconds = 48 * 60 * 60
 )
 
-// my
-func (r ShortVipLinkRequest) Validate() error {
+const (
+	ttlUnitDays    = "DAYS"
+	ttlUnitHours   = "HOURS"
+	ttlUnitMinutes = "MINUTES"
+	ttlUnitSeconds = "SECONDS"
+)
+
+const (
+	defaultTtl     = 10
+	defaultTtlUnit = "HOURS"
+)
+
+func (r *ShortLinkRequest) Validate() error {
 	if r.LongUrl == "" {
 		return fmt.Errorf("invalid long url")
 	}
 
-	// TODO: написать проверку на существует ли уже такая vip ссылка
-	if r.VipKey == "" {
-		return fmt.Errorf("vip key is empty")
+	if r.TimeToLive < 0 {
+		return apierrors.BadRequest{}
+	}
+
+	// значение 0 является валидным, оно отрабатывается в случае, если ничего не посылается
+	if r.TimeToLive == 0 {
+		r.TimeToLive = defaultTtl
+	}
+
+	if r.TimeToLiveUnit == "" {
+		r.TimeToLiveUnit = defaultTtlUnit
 	}
 
 	maxValues := map[string]int{
-		"DAYS":    maxDays,
-		"HOURS":   maxHours,
-		"MINUTES": maxMinutes,
-		"SECONDS": maxSeconds,
+		ttlUnitDays:    maxDays,
+		ttlUnitHours:   maxHours,
+		ttlUnitMinutes: maxMinutes,
+		ttlUnitSeconds: maxSeconds,
 	}
 
+	// TODO: написать проверку на отрицательные числа
+	// написать проверку на пустые поля ttl и ttl_unit
 	if r.TimeToLive > maxValues[r.TimeToLiveUnit] {
 		return fmt.Errorf("date should be less than 2 days")
 	}
@@ -55,30 +72,6 @@ func (r ShortVipLinkRequest) Validate() error {
 
 	// можно еще проверить на http или https
 	if parsedUrl.Scheme == "" {
-		return fmt.Errorf("schema should be provided in long url")
-	}
-
-	/*	if (r.TimeToLiveUnit == "HOURS" && r.TimeToLive > 48) ||
-		(r.TimeToLiveUnit == "DAYS" && r.TimeToLive > 2) ||
-		(r.TimeToLiveUnit == "MINUTES" && r.TimeToLive > (48*60)) ||
-		(r.TimeToLiveUnit == "SECONDS" && r.TimeToLive > (48*60*60)) {
-		return fmt.Errorf("date should be less 2 days")
-	}*/
-
-	return nil
-}
-
-func (r ShortLinkRequest) Validate() error {
-	if r.LongUrl == "" {
-		return fmt.Errorf("invalid long url")
-	}
-
-	longUrl, err := url.Parse(r.LongUrl)
-	if err != nil {
-		return err
-	}
-
-	if longUrl.Scheme == "" {
 		return fmt.Errorf("schema should be provided in long url")
 	}
 

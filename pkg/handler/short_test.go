@@ -3,6 +3,7 @@ package handler_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"text/template"
@@ -40,6 +41,8 @@ func (s *TestSuite) TestShortDuplicate() {
 	s.Require().NoError(err)
 
 	shortUrl, err := url.Parse(response.ShortUrl)
+	fmt.Println("1--------", shortUrl.Path)
+	fmt.Println("1--------", response.SecretKey)
 	s.Require().NoError(err)
 	s.Require().Len(shortUrl.Path, 18)
 

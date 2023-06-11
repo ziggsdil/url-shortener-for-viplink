@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	apierrors "git.yandex-academy.ru/school/2023-06/backend/go/homeworks/intro_lecture/ya-url-shortener-for-viplink/pkg/errors"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -42,8 +44,8 @@ func (db *Database) Clean(ctx context.Context) error {
 	return err
 }
 
-func (db *Database) Save(ctx context.Context, shortSuffix, longLink, secretKey string) error {
-	_, err := db.client.ExecContext(ctx, saveRequest, shortSuffix, longLink, secretKey)
+func (db *Database) Save(ctx context.Context, shortSuffix, longLink, secretKey string, expirationDate time.Time, isDeleted bool) error {
+	_, err := db.client.ExecContext(ctx, saveRequest, shortSuffix, longLink, secretKey, expirationDate, isDeleted)
 	return err
 }
 
@@ -51,12 +53,26 @@ func (db *Database) SelectBySuffix(ctx context.Context, shortSuffix string) (*Li
 	row := db.client.QueryRowContext(ctx, selectBySuffixRequest, shortSuffix)
 
 	var link Link
-	err := row.Scan(&link.ShortSuffix, &link.Link, &link.SecretKey, &link.Clicks)
+	var expirationTime time.Time
+	err := row.Scan(&link.ShortSuffix, &link.Link, &link.SecretKey, &link.Clicks, &link.ExpirationDate, &link.Deleted)
 	switch {
 	case err == sql.ErrNoRows:
 		return nil, SuffixNotFoundError
 	case err != nil:
 		return nil, err
+	}
+
+	// Проверка истечения срока действия ссылки
+	// Округление до секунд
+	// TODO: стоит перенести в отдельный метод, потому что этот метод вызывается не только во время редиректа
+	expirationTime = link.ExpirationDate.Truncate(time.Second)
+	currentTime := time.Now().Truncate(time.Second).UTC() // преобразование времени в UTC, для сравнения
+
+	if expirationTime.Before(currentTime) {
+		if _, err := db.client.ExecContext(ctx, updateDeletedBySuffixRequest, shortSuffix); err != nil {
+			return nil, err
+		}
+		return nil, apierrors.NotFoundError{}
 	}
 
 	return &link, nil
@@ -66,7 +82,7 @@ func (db *Database) SelectByLink(ctx context.Context, longLink string) (*Link, e
 	row := db.client.QueryRowContext(ctx, selectByLinkRequest, longLink)
 
 	var link Link
-	err := row.Scan(&link.ShortSuffix, &link.Link, &link.SecretKey, &link.Clicks)
+	err := row.Scan(&link.ShortSuffix, &link.Link, &link.SecretKey, &link.Clicks, &link.ExpirationDate, &link.Deleted)
 	switch {
 	case err == sql.ErrNoRows:
 		return nil, LinkNotFoundError
@@ -81,7 +97,7 @@ func (db *Database) SelectBySecretKey(ctx context.Context, secretKey string) (*L
 	row := db.client.QueryRowContext(ctx, selectBySecretKeyRequest, secretKey)
 
 	var link Link
-	err := row.Scan(&link.ShortSuffix, &link.Link, &link.SecretKey, &link.Clicks)
+	err := row.Scan(&link.ShortSuffix, &link.Link, &link.SecretKey, &link.Clicks, &link.ExpirationDate, &link.Deleted)
 	switch {
 	case err == sql.ErrNoRows:
 		return nil, SecretKeyNotFoundError

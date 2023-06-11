@@ -38,9 +38,11 @@ func (s *TestSuite) TestInfoOkWithRedirects() {
 	s.Require().Equal(http.StatusOK, code)
 
 	shortResponse, err := s.shortResponseFromBody(rawBody)
+	fmt.Println("1 ---------------------", code, shortResponse, rawBody)
 	s.Require().NoError(err)
 
 	shortUrl, err := url.Parse(shortResponse.ShortUrl)
+	fmt.Println("2 ---------------------", code, shortUrl)
 	s.Require().NoError(err)
 
 	// make some redirects
@@ -49,7 +51,7 @@ func (s *TestSuite) TestInfoOkWithRedirects() {
 		s.Require().Equal(http.StatusTemporaryRedirect, code)
 	}
 
-	// check info
+	//check info
 	code, rawBody = s.doRequest(s.infoRequest(shortResponse.SecretKey))
 	s.Require().Equal(http.StatusOK, code)
 

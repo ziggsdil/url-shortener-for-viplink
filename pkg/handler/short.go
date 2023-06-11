@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	database "git.yandex-academy.ru/school/2023-06/backend/go/homeworks/intro_lecture/ya-url-shortener-for-viplink/pkg/db"
 	apierrors "git.yandex-academy.ru/school/2023-06/backend/go/homeworks/intro_lecture/ya-url-shortener-for-viplink/pkg/errors"
@@ -23,7 +24,7 @@ var shortLinkFunc = func(baseUrl, suffix string) string { return fmt.Sprintf("ht
 func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var request ShortVipLinkRequest
+	var request ShortLinkRequest
 	err := h.parseBody(r.Body, &request)
 	if err != nil {
 		fmt.Printf("error when parse body: %v\n", err)
@@ -35,6 +36,22 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("error when validate request: %v\n", err)
 		h.renderer.RenderError(w, apierrors.BadRequest{})
 		return
+	}
+
+	var shortSuffix string
+	if request.VipKey == "" {
+		for {
+			shortSuffix, err = h.generateShortSuffix(ctx)
+			if err == nil {
+				break
+			}
+
+			if !errors.Is(err, apierrors.SuffixAlreadyExistsError{}) {
+				fmt.Printf("error when generate short link: %v\n", err)
+				h.renderer.RenderError(w, apierrors.InternalError{})
+				return
+			}
+		}
 	}
 
 	// проверка существует ли уже короткая ссылка на длинный url
@@ -79,7 +96,30 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.db.Save(ctx, request.VipKey, request.LongUrl, secretKey)
+	// преобразование единицы измерения временно интервала
+	// TODO: возможно стоит отрефакторить
+	var duration time.Duration
+	switch request.TimeToLiveUnit {
+	case "SECONDS":
+		duration = time.Duration(request.TimeToLive) * time.Second
+	case "MINUTES":
+		duration = time.Duration(request.TimeToLive) * time.Minute
+	case "HOURS":
+		duration = time.Duration(request.TimeToLive) * time.Hour
+	case "DAYS":
+		duration = time.Duration(request.TimeToLive) * time.Hour * 24
+	default:
+		fmt.Printf("Incorrect time type")
+	}
+
+	expirationDate := time.Now().UTC().Add(duration) // приводим к типу UTC для сравнения вне зависимости от временной зоны
+
+	if request.VipKey == "" {
+		err = h.db.Save(ctx, shortSuffix, request.LongUrl, secretKey, expirationDate, false)
+	} else {
+		err = h.db.Save(ctx, request.VipKey, request.LongUrl, secretKey, expirationDate, false)
+
+	}
 	if err != nil {
 		fmt.Printf("error when saving short link: %v\n", err)
 		h.renderer.RenderError(w, apierrors.InternalError{})
@@ -87,80 +127,13 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("short link \"%s\" with suffix \"%s\" has been successfully saved\n", request.LongUrl, request.VipKey)
-	h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, request.VipKey), SecretKey: secretKey})
-
-}
-
-func (h *Handler) Short(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var request ShortLinkRequest
-	err := h.parseBody(r.Body, &request)
-	if err != nil {
-		fmt.Printf("error when parse body: %v\n", err)
-		h.renderer.RenderError(w, apierrors.BadRequest{})
-		return
+	// TODO: refactor
+	if request.VipKey == "" {
+		h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, shortSuffix), SecretKey: secretKey})
+	} else {
+		h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, request.VipKey), SecretKey: secretKey})
 	}
 
-	if err := request.Validate(); err != nil {
-		fmt.Printf("error when validate request: %v\n", err)
-		h.renderer.RenderError(w, apierrors.BadRequest{})
-		return
-	}
-
-	// check if long url has already been saved
-	link, err := h.db.SelectByLink(ctx, request.LongUrl)
-	switch {
-	case err == nil:
-		fmt.Printf("long url \"%s\" has been already shorten with suffix %s\n", link.Link, link.ShortSuffix)
-		h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, link.ShortSuffix)})
-		return
-	case errors.Is(err, database.LinkNotFoundError):
-	default:
-		fmt.Printf("error when select long url: %v\n", err)
-		h.renderer.RenderError(w, apierrors.InternalError{})
-		return
-	}
-
-	// generate link and check if it's unique
-	var shortSuffix string
-	for {
-		shortSuffix, err = h.generateShortSuffix(ctx)
-		if err == nil {
-			break
-		}
-
-		if !errors.Is(err, apierrors.SuffixAlreadyExistsError{}) {
-			fmt.Printf("error when generate short link: %v\n", err)
-			h.renderer.RenderError(w, apierrors.InternalError{})
-			return
-		}
-	}
-
-	// generate secret key and check if it's unique
-	var secretKey string
-	for {
-		secretKey, err = h.generateSecretKey(ctx)
-		if err == nil {
-			break
-		}
-
-		if !errors.Is(err, apierrors.SecretKeyAlreadyExistsError{}) {
-			fmt.Printf("error when generate secret key: %v\n", err)
-			h.renderer.RenderError(w, apierrors.InternalError{})
-			return
-		}
-	}
-
-	err = h.db.Save(ctx, shortSuffix, request.LongUrl, secretKey)
-	if err != nil {
-		fmt.Printf("error when saving short link: %v\n", err)
-		h.renderer.RenderError(w, apierrors.InternalError{})
-		return
-	}
-
-	fmt.Printf("short link \"%s\" with suffix \"%s\" has been successfully saved\n", request.LongUrl, shortSuffix)
-	h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, shortSuffix), SecretKey: secretKey})
 }
 
 func (h *Handler) generateShortSuffix(ctx context.Context) (string, error) {

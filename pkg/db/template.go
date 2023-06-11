@@ -6,7 +6,9 @@ const (
 			short_suffix TEXT PRIMARY KEY,
 			link TEXT,
 			secret_key TEXT UNIQUE,
-			clicks INTEGER NOT NULL DEFAULT 0
+			clicks INTEGER NOT NULL DEFAULT 0,
+			expiration_date TIMESTAMP WITH TIME ZONE,
+			is_deleted BOOLEAN DEFAULT FALSE
 		);
 	`
 
@@ -19,8 +21,8 @@ const (
 	`
 
 	saveRequest = `
-		INSERT INTO links(short_suffix, link, secret_key) 
-			VALUES ($1, $2, $3);
+		INSERT INTO links(short_suffix, link, secret_key, expiration_date, is_deleted) 
+			VALUES ($1, $2, $3, $4, $5);
 	`
 
 	selectBySuffixRequest = `
@@ -48,4 +50,10 @@ const (
 			SET clicks = clicks+1
 			WHERE short_suffix=$1;
 	`
+
+	updateDeletedBySuffixRequest = `
+		UPDATE links
+			SET is_deleted = true
+			WHERE short_suffix=$1;
+`
 )
