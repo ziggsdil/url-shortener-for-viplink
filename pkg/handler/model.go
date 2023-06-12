@@ -59,8 +59,10 @@ func (r *ShortLinkRequest) Validate() error {
 		ttlUnitSeconds: maxSeconds,
 	}
 
-	// TODO: написать проверку на отрицательные числа
-	// написать проверку на пустые поля ttl и ttl_unit
+	if r.TimeToLive < 0 {
+		return fmt.Errorf("time ti live should be positive number")
+	}
+
 	if r.TimeToLive > maxValues[r.TimeToLiveUnit] {
 		return fmt.Errorf("date should be less than 2 days")
 	}
@@ -70,7 +72,6 @@ func (r *ShortLinkRequest) Validate() error {
 		return err
 	}
 
-	// можно еще проверить на http или https
 	if parsedUrl.Scheme == "" {
 		return fmt.Errorf("schema should be provided in long url")
 	}

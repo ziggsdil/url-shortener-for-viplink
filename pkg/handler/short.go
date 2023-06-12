@@ -20,7 +20,6 @@ const (
 
 var shortLinkFunc = func(baseUrl, suffix string) string { return fmt.Sprintf("http://%s/%s", baseUrl, suffix) }
 
-// my
 func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -53,12 +52,8 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	// проверка не занята ли уже короткая ссылка
-	// TODO: нужно проверить что содержится в vipkey
-	// не получается пройти тест из за return на 63 строке, он возвращает сразу потому что встречает, что уже такая ссылка есть, возможно стоит убрать эту проверку.
-	fmt.Println(request.VipKey)
-	shortLink, err := h.db.SelectBySuffix(ctx, request.VipKey)
-	fmt.Println("1123------------------", shortLink, err)
+
+	_, err = h.db.SelectBySuffix(ctx, request.VipKey)
 	switch {
 	case err == nil:
 		fmt.Printf("vip url \"%s\" already exist", request.VipKey)
@@ -99,8 +94,7 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// преобразование единицы измерения временно интервала
-	// TODO: возможно стоит отрефакторить
+	// time interval unit conversion
 	var duration time.Duration
 	switch request.TimeToLiveUnit {
 	case "SECONDS":
@@ -115,14 +109,12 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Incorrect time type")
 	}
 
-	expirationDate := time.Now().UTC().Add(duration) // приводим к типу UTC для сравнения вне зависимости от временной зоны
+	expirationDate := time.Now().UTC().Add(duration) // cast to UTC type for comparison, regardless of the time zone
 
-	// TODO: refactor
 	if request.VipKey == "" {
 		err = h.db.Save(ctx, shortSuffix, request.LongUrl, secretKey, expirationDate, false)
 	} else {
 		err = h.db.Save(ctx, request.VipKey, request.LongUrl, secretKey, expirationDate, false)
-
 	}
 	if err != nil {
 		fmt.Printf("error when saving short link: %v\n", err)
@@ -131,7 +123,6 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("short link \"%s\" with suffix \"%s\" has been successfully saved\n", request.LongUrl, request.VipKey)
-	// TODO: refactor
 	if request.VipKey == "" {
 		h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, shortSuffix), SecretKey: secretKey})
 	} else {

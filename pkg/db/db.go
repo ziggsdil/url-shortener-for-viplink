@@ -62,11 +62,9 @@ func (db *Database) SelectBySuffix(ctx context.Context, shortSuffix string) (*Li
 		return nil, err
 	}
 
-	// Проверка истечения срока действия ссылки
-	// Округление до секунд
-	// TODO: стоит перенести в отдельный метод, потому что этот метод вызывается не только во время редиректа
+	// Check url expiration date
 	expirationTime = link.ExpirationDate.Truncate(time.Second)
-	currentTime := time.Now().Truncate(time.Second).UTC() // преобразование времени в UTC, для сравнения
+	currentTime := time.Now().Truncate(time.Second).UTC()
 
 	if expirationTime.Before(currentTime) {
 		if _, err := db.client.ExecContext(ctx, updateDeletedBySuffixRequest, shortSuffix); err != nil {
@@ -122,6 +120,41 @@ func (db *Database) DeleteBySecretKey(ctx context.Context, secretKey string) err
 		return SecretKeyNotFoundError
 	}
 
+	return nil
+}
+
+func (db *Database) DeleteInvalidRows(ctx context.Context) error {
+	res, err := db.client.ExecContext(ctx, deleteRowsByIsDeleted)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return RowsToDeleteNotFoundError
+	}
+	return nil
+}
+
+// IsLinkExpired the method will check the database for dead links and set is_deleted to true if the link timed out
+func (db *Database) IsLinkExpired(ctx context.Context) error {
+	currentTime := time.Now().Truncate(time.Second).UTC()
+
+	res, err := db.client.ExecContext(ctx, updateExpirationDate, currentTime)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return NothingToUpdateError
+	}
 	return nil
 }
 

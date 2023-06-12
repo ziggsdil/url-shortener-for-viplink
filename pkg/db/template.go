@@ -53,7 +53,16 @@ const (
 
 	updateDeletedBySuffixRequest = `
 		UPDATE links
-			SET is_deleted = true
+			SET is_deleted=true
 			WHERE short_suffix=$1;
-`
+	`
+	deleteRowsByIsDeleted = `
+		DELETE FROM links
+			WHERE is_deleted=true;
+	`
+
+	updateExpirationDate = `
+		UPDATE links
+			SET is_deleted=true
+			WHERE expiration_date < $1`
 )
