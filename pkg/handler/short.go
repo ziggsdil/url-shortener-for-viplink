@@ -53,6 +53,23 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	// проверка не занята ли уже короткая ссылка
+	// TODO: нужно проверить что содержится в vipkey
+	// не получается пройти тест из за return на 63 строке, он возвращает сразу потому что встречает, что уже такая ссылка есть, возможно стоит убрать эту проверку.
+	fmt.Println(request.VipKey)
+	shortLink, err := h.db.SelectBySuffix(ctx, request.VipKey)
+	fmt.Println("1123------------------", shortLink, err)
+	switch {
+	case err == nil:
+		fmt.Printf("vip url \"%s\" already exist", request.VipKey)
+		h.renderer.RenderError(w, apierrors.BadRequest{})
+		return
+	case errors.Is(err, database.SuffixNotFoundError):
+	default:
+		fmt.Printf("error when select vip url: %v\n", err)
+		h.renderer.RenderError(w, apierrors.InternalError{})
+		return
+	}
 
 	// проверка существует ли уже короткая ссылка на длинный url
 	link, err := h.db.SelectByLink(ctx, request.LongUrl)
@@ -64,20 +81,6 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, database.LinkNotFoundError):
 	default:
 		fmt.Printf("error when select long url: %v\n", err)
-		h.renderer.RenderError(w, apierrors.InternalError{})
-		return
-	}
-
-	// проверка не занята ли уже короткая ссылка
-	shortLink, err := h.db.SelectBySuffix(ctx, request.VipKey)
-	switch {
-	case err == nil:
-		fmt.Printf("vip url \"%s\" already exist", shortLink.ShortSuffix)
-		//h.renderer.RenderJSON(w, )
-		return
-	case errors.Is(err, database.SuffixNotFoundError):
-	default:
-		fmt.Printf("error when select vip url: %v\n", err)
 		h.renderer.RenderError(w, apierrors.InternalError{})
 		return
 	}
@@ -114,6 +117,7 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 
 	expirationDate := time.Now().UTC().Add(duration) // приводим к типу UTC для сравнения вне зависимости от временной зоны
 
+	// TODO: refactor
 	if request.VipKey == "" {
 		err = h.db.Save(ctx, shortSuffix, request.LongUrl, secretKey, expirationDate, false)
 	} else {
@@ -133,7 +137,6 @@ func (h *Handler) ShortVIP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		h.renderer.RenderJSON(w, ShortLinkResponse{ShortUrl: shortLinkFunc(h.url, request.VipKey), SecretKey: secretKey})
 	}
-
 }
 
 func (h *Handler) generateShortSuffix(ctx context.Context) (string, error) {
