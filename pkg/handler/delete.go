@@ -39,7 +39,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // DeleteInvalidRows delete all invalid rows one time
 func (h *Handler) DeleteInvalidRows() {
-	fmt.Println("go routine is started")
 	ctx := context.Background()
 	// 2 times in day check database and delete all "died" urls
 	ticker := time.NewTicker(timeToUpdate * time.Hour)

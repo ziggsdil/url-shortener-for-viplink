@@ -13,9 +13,17 @@ components:
           description: error message
           type: string
           required: true
+    InfoResponse:
+      type: object
+      properties:
+        detail:
+          description: object message
+          type: string
+          required: true
 paths:
-  /make_shorter:
+  /api/v1/make_shorter:
     post:
+      summary: make vip link
       description: creates short url
       requestBody:
         required: true
@@ -67,3 +75,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/error"
+  /api/v1/admin/{secretKey}:
+    delete:
+      summary: Delete row by secret key
+      parameters:
+        - name: secretKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Secret key not found
+    get:
+      summary: Get information by secret key
+      parameters:
+        - name: secretKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InfoResponse'
+        '400':
+          description: Secret key not found
+  /api/v1/{shortSuffix}:
+    get:
+      summary: Redirect to the original link
+      parameters:
+        - name: shortSuffix
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '307':
+          description: Redirect to the original link
+        '404':
+          description: Short suffix not found
+  /api/v1/healthcheck/ping:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
