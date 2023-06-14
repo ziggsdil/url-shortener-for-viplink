@@ -50,14 +50,155 @@
 ![img_5.png](images/img_5.png)
 
 > Описание в api в формате openapi.yaml
-![img_6.png](images/img_6.png)
-![img_7.png](images/img_7.png)
-![img_8.png](images/img_8.png)
+~~~yaml
+openapi: "3.0.2"
+info:
+  title: UrlShortener API
+  version: "1.0"
+servers:
+  - url: http://localhost:8000/
+components:
+  schemas:
+    error:
+      type: object
+      properties:
+        detail:
+          description: error message
+          type: string
+          required: true
+    InfoResponse:
+      type: object
+      properties:
+        detail:
+          description: object message
+          type: string
+          required: true
+paths:
+  /api/v1/make_shorter:
+    post:
+      summary: make vip link
+      description: creates short url
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                long_url:
+                  description: url to make shorter
+                  type: string
+                  default: https://yandex.ru
+                vip_key:
+                  description: short key to be mapped to long url
+                  type: string
+                  required: false
+                ttl:
+                  description: |
+                    number of time-units this short url is going to be active. 
+                    Maximum value must not be more than 48 hours
+                  type: integer
+                  required: false
+                  default: 10
+                ttl_unit:
+                  description: time unit for time_to_live parameter
+                  type: string
+                  enum:
+                    - SECONDS
+                    - MINUTES
+                    - HOURS
+                    - DAYS
+                  required: false
+                  default: HOURS
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  short_url:
+                    type: string
+                  secret_key:
+                    type: string
+        '400':
+          description: invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
+  /api/v1/admin/{secretKey}:
+    delete:
+      summary: Delete row by secret key
+      parameters:
+        - name: secretKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Secret key not found
+    get:
+      summary: Get information by secret key
+      parameters:
+        - name: secretKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InfoResponse'
+        '400':
+          description: Secret key not found
+  /api/v1/{shortSuffix}:
+    get:
+      summary: Redirect to the original link
+      parameters:
+        - name: shortSuffix
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '307':
+          description: Redirect to the original link
+        '404':
+          description: Short suffix not found
+  /api/v1/healthcheck/ping:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+~~~
+> Диаграмма компонентов
+![img.png](images/img6.png)
+> 1. User Interface: Взаимодействие пользователя с сервисом, где пользователь вводит длинную ссылку и сокращение для нее, а также получает сокращенную ссылку в ответ. 
+> 2. Web Service (Backend): Обработка запросов от пользовательского интерфейса. Создает запись в базе данных с информацией о ссылке, суффиксе и количестве кликов. Генерирует сокращенную ссылку на основе введенного сокращения или автоматически создает уникальный суффикс. 
+> 3. Database: Хранение информации о ссылках, их суффиксах и количестве кликов. Сохраняет информацию о созданных сокращенных ссылках и предоставляет ее сервису при запросе.
+
+**Процесс работы**
+1. Пользователь вводит длинную ссылку и (опционально) сокращение для нее через пользовательский интерфейс.
+2. Web Service получает запрос с длинной ссылкой и сокращением (если указано).
+3. Web Service создает запись в базе данных, сохраняя информацию о длинной ссылке, сокращении (если указано) и начальном количестве кликов.
+4. Web Service генерирует или использует указанное сокращение для создания сокращенной ссылки.
+5. Web Service возвращает сокращенную ссылку в пользовательский интерфейс.
+6. При обращении к сокращенной ссылке пользовательским интерфейсом, Web Service получает запрос на перенаправление.
+7. Web Service использует сокращенную ссылку для поиска соответствующей записи в базе данных.
+8. Web Service обновляет количество кликов для найденной записи в базе данных.
+9. Web Service возвращает длинную ссылку в пользовательский интерфейс для выполнения перенаправления.
 
 ## AB - тесты
 Придумать AB-тест - какие выборки пользователей будут в эксперименте? Какие параметры фичи будем проверять в каждой выборке?
-[1 - отсутствует описание, 2 - описан AB с флагом - включен или выключен эксп, 3 - описаны AB тесты, кроме контрольной есть
-больше 1 выборки с параметрами конфигурации фичи, например, размер-цвет]
 **Выборка пользователей:**
 1. Контрольная выборка, которая будет использовать функционал сервиса без изменений, то есть использовать автоматически
    сгенерированные ссылки
@@ -75,4 +216,5 @@
 Метрики:
 1. Количество переходов по ссылкам: если новая фича увеличивает количество переходов по ссылкам, то можно сделать вывод,
    что она взлетела, фича будет считаться успешной, если метрики переходов по ссылке будут увеличены на более чем 5%.
-2. Конверсия, если новая фича увеличивает конверсию, то она взлетела.
+2. Количество созданных ссылок, если ссылки создаются часто и пользуются спросом, то можно сделать вывод, что фича взлетела
+и пользователям нравятся vip-ссылки
